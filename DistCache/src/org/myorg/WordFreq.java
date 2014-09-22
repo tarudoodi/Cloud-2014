@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -26,14 +28,16 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 
-public class WordFreq {
+public class WordFreq extends Configured implements Tool {
 
 	public static class Map extends MapReduceBase implements
 			Mapper<LongWritable, Text, Text, IntWritable> {
 		private final static IntWritable one = new IntWritable(1);
 		private Text word = new Text();
-		private Set<String> genPatternSet = new HashSet<String>();
+		private Set<StringTokenizer> genPatternSet = new HashSet<StringTokenizer>();
 
 		public void configure(JobConf job) {
 
@@ -51,11 +55,17 @@ public class WordFreq {
 		private void genPattern(Path patternsFile) {
 			try {
 				BufferedReader fileBuf = new BufferedReader(new FileReader(
-						patternsFile.toString()));
+						patternsFile.toString())); // converting the entire file
+													// to string in the buffered
 				String pattern = null;
 				while ((pattern = fileBuf.readLine()) != null) {
 					if (!genPatternSet.contains(pattern)) {
-						genPatternSet.add(pattern);
+						StringTokenizer patternTokenizer = new StringTokenizer( //extract tokens and use them to create a hashset of tokens
+								pattern);
+						while (patternTokenizer.hasMoreElements()) {
+							genPatternSet.add(patternTokenizer);
+							patternTokenizer.nextToken();
+						}
 					}
 				}
 				fileBuf.close();
@@ -74,9 +84,12 @@ public class WordFreq {
 			String line = value.toString();
 			StringTokenizer tokenizer = new StringTokenizer(line);
 			while (tokenizer.hasMoreTokens()) {
-				if (genPatternSet.contains(tokenizer)) {
+
+				if (genPatternSet.contains(tokenizer)) { 	// check whether the current token exists in the pattern hash set
 					word.set(tokenizer.nextToken());
 					output.collect(word, one);
+				} else {
+					tokenizer.nextToken();
 				}
 			}
 		}
@@ -95,7 +108,8 @@ public class WordFreq {
 		}
 	}
 
-	public static void main(String[] args) throws Exception {
+	//public static void main(String[] args) throws Exception
+	 public int run(String[] args) throws Exception {
 		JobConf conf = new JobConf(WordFreq.class);
 		conf.setJobName("wordfreq");
 
@@ -112,7 +126,14 @@ public class WordFreq {
 		FileInputFormat.setInputPaths(conf, new Path(args[1]));
 		FileOutputFormat.setOutputPath(conf, new Path(args[2]));
 
-		DistributedCache.addCacheFile(new URI("/task3/wordpatterns.txt"), conf);
+		DistributedCache.addCacheFile(new URI("/wordpatterns.txt"), conf);
 		JobClient.runJob(conf);
+		return 0;
 	}
+	
+	
+	 public static void main(String[] args) throws Exception {
+		 	     int res = ToolRunner.run(new Configuration(), new WordFreq(), args);
+		 	     System.exit(res);
+		 	   }
 }

@@ -13,20 +13,33 @@ public class WordPair {
 		private Text word = new Text();
 
 		public void map(LongWritable key, Text value,
-				OutputCollector<Text, IntWritable> output, Reporter reporter)
-				throws IOException {
+				OutputCollector<Text, IntWritable> output, Reporter reporter) {
 			String line = value.toString();
-			String firstWord;
+			String firstWord; 
 			String secondWord;
 			String pairedWord;
 			StringTokenizer tokenizer = new StringTokenizer(line);
-			firstWord = tokenizer.nextToken();
-			while (tokenizer.hasMoreTokens()) {
-				secondWord = tokenizer.nextToken();
-				pairedWord = firstWord + " " + secondWord;
-				firstWord = secondWord;
-				word.set(pairedWord);
-				output.collect(word, one);
+			try {								//in case the document is empty
+				firstWord = tokenizer.nextToken(); //get first word
+				while (tokenizer.hasMoreTokens()) {	//till tokens are present
+					if (tokenizer.hasMoreElements()) {
+						secondWord = tokenizer.nextToken();
+					} else {				//append with empty space if no token encountered
+						secondWord = "";
+					}
+					pairedWord = firstWord + " " + secondWord;
+					firstWord = secondWord;
+					word.set(pairedWord);
+					// try {
+					output.collect(word, one);			//create map with the paired word.
+					// } catch (Exception e) {
+					// System.err.print(e.getMessage());
+					// }
+				}
+			} catch (Exception e) {
+				System.err
+						.print("Empty document!!!!! :::"
+								+ e.getMessage());
 			}
 		}
 	}
@@ -46,7 +59,7 @@ public class WordPair {
 
 	public static void main(String[] args) throws Exception {
 		JobConf conf = new JobConf(WordPair.class);
-		conf.setJobName("wordcount");
+		conf.setJobName("wordpair");
 		conf.setOutputKeyClass(Text.class);
 		conf.setOutputValueClass(IntWritable.class);
 		conf.setMapperClass(Map.class);
